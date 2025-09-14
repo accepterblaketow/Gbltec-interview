@@ -4,8 +4,14 @@
 Server 負責產生訊息並送到 Client 的 Webhook；Client 負責存資料、檢查是否觸發通知，以及查詢歷史紀錄。  
 另外 Client 也提供「插隊測試」的功能。
 
----
 
+---
+##  啟動方式
+
+
+```bash
+docker-compose up -d --build
+```
 ##  Server 端 (http://localhost:8081)
 
 | Method | Path | 功能 | 範例 |
