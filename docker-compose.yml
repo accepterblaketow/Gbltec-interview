@@ -1,0 +1,23 @@
+version: "3.8"
+services:
+  server:
+    build: ./server
+    container_name: tg_server
+    ports: ["8081:80"]
+    environment:
+      - TZ=Asia/Taipei
+    volumes:
+      - ./server/src/data:/var/www/html/data
+    depends_on:
+      - client
+
+  client:
+    build: ./client
+    container_name: tg_client
+    ports: ["8082:80"]
+    environment:
+      - TZ=Asia/Taipei
+      - TELEGRAM_BOT_TOKEN=8186922286:AAH_dEUP26qMExA2oY0JM18OYcZQMZISPfI
+      - TELEGRAM_CHAT_ID=7721713880
+    volumes:
+      - ./client/src/data:/var/www/html/data

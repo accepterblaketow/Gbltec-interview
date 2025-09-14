@@ -1,0 +1,14 @@
+# 忽略資料檔與 DB
+server/src/data/
+client/src/data/
+*.db
+
+# Composer 安裝後的 vendor 目錄（如果未來用到 Composer 套件）
+vendor/
+
+# 編譯、快取
+*.log
+*.cache
+
+# Docker
+*.pid
