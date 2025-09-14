@@ -43,6 +43,43 @@ if ($path === '/requests' && $method === 'GET') {
   $html.= "</table></body></html>";
   html($html);
 }
+//單筆插隊
+if ($path === '/inject' && $method === 'POST') {
+  $j = json_decode(file_get_contents('php://input'), true);
+  if (!$j) { http_response_code(400); ok(['ok'=>false,'err'=>'invalid json']); }
+  $env  = $j['env']  ?? 'A1';
+  $text = $j['text'] ?? 'Something is wrong';
+  $msgTime = isset($j['time']) ? strtotime($j['time']) : time();
+  $now = time();
+  $pdo = Db::pdo();
+  $st = $pdo->prepare("INSERT INTO requests(env,text,msg_time,received_at) VALUES(?,?,?,?)");
+  $st->execute([$env,$text,$msgTime,$now]);
+  checkAndNotify($env, $text);
+  ok(['ok'=>true,'inserted'=>['env'=>$env,'text'=>$text,'msg_time'=>$msgTime]]);
+}
+//批次插隊
+if ($path === '/inject-batch' && $method === 'POST') {
+  $j = json_decode(file_get_contents('php://input'), true);
+  if (!$j) { http_response_code(400); ok(['ok'=>false,'err'=>'invalid json']); }
+  $env   = $j['env']   ?? 'A1';
+  $text  = $j['text']  ?? 'Something is wrong';
+  $gap   = isset($j['gap'])   ? max(1,(int)$j['gap'])   : 7;   // 每筆間隔秒
+  $count = isset($j['count']) ? max(1,(int)$j['count']) : 44;  // 插入筆數
+  $endTs = isset($j['end_time']) ? strtotime($j['end_time']) : time(); // 結束時刻（默認現在）
+
+  $pdo = Db::pdo();
+  $pdo->beginTransaction();
+  $st = $pdo->prepare("INSERT INTO requests(env,text,msg_time,received_at) VALUES(?,?,?,?)");
+  for ($i=$count-1; $i>=0; $i--) {
+    $msgTime = $endTs - $i*$gap;
+    $st->execute([$env,$text,$msgTime,time()]);
+  }
+  $pdo->commit();
+  // 最後再檢查一次，會觸發通知
+  checkAndNotify($env, $text);
+  ok(['ok'=>true,'env'=>$env,'count'=>$count,'gap'=>$gap,'end_time'=>$endTs]);
+}
+
 
 if ($path === '/health') { ok(['ok'=>true]); }
 
@@ -60,11 +97,20 @@ function checkAndNotify($env, $text){
   $pdo = Db::pdo();
 
   // 取近 10 分鐘內此 env 的訊息，按 msg_time 排序（含插隊）
+  /*
   $st = $pdo->prepare("SELECT msg_time FROM requests WHERE env=? AND text='Something is wrong'
                        AND msg_time >= ? ORDER BY msg_time ASC");
   $st->execute([$env, time()-600]);
+  */
+  //取全部的訊息
+  $st = $pdo->prepare("SELECT msg_time FROM requests
+                     WHERE env=? AND text='Something is wrong'
+                     ORDER BY msg_time ASC");
+  $st->execute([$env]);
+
   $times = $st->fetchAll(PDO::FETCH_COLUMN, 0);
   if (count($times) < 2) return;
+
 
   // 找是否存在一段長度 >=300s 的子序列，且相鄰差值 <=7s
   $winStart = 0; $bestLen = 0; $bestStartTs = null; $bestEndTs = null;
@@ -86,11 +132,12 @@ function checkAndNotify($env, $text){
 
   if ($bestLen >= 300) {
     // 去重：同 env 60s 內不重複
+    /*
     $row = $pdo->query("SELECT last_notified_at FROM notify_state WHERE env=".$pdo->quote($env))->fetch(PDO::FETCH_ASSOC);
     $now = time();
     if ($row && $now - (int)$row['last_notified_at'] < 60) return;
-
-    $msg = sprintf("【告警】%s\nEnv: %s\nText: %s\n區間: %s ~ %s",
+    */
+    $msg = sprintf("【警告】%s\nEnv: %s\nText: %s\n區間: %s ~ %s",
       date('Y-m-d H:i:s'),
       $env, 'Something is wrong',
       date('Y-m-d H:i:s', $bestStartTs), date('Y-m-d H:i:s', $bestEndTs)

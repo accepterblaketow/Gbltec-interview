@@ -49,7 +49,7 @@ while (true) {
         // 1~15 隨機，需與其它 env 本輪不同；若撞到就忽略（規格允許）
         $candidate = random_int(1, 15);
         $others = array_diff_key($interval, [$env=>true]);
-        if (in_array($candidate, $others, true)) {
+        while (in_array($candidate, $others, true)) {
           // 忽略本輪重抽：直接推遲到下一圈再決定
           $candidate = random_int(1, 15);
         }
