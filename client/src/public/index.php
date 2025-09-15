@@ -80,6 +80,42 @@ if ($path === '/inject-batch' && $method === 'POST') {
   ok(['ok'=>true,'env'=>$env,'count'=>$count,'gap'=>$gap,'end_time'=>$endTs]);
 }
 
+// Demo 頁：GET /demo（有按鈕可以插隊/批次插隊）
+if ($path === '/demo' && $method === 'GET') {
+  $html = <<<'HTML'
+  <html><head><meta charset="utf-8"><title>Demo Inject</title>
+  <style>body{font-family:sans-serif}label{display:block;margin:8px 0 4px}input{width:260px}</style></head><body>
+    <h3>單筆插隊</h3>
+    <label>Env</label><input id="env" value="A1">
+    <label>Text</label><input id="text" value="Something is wrong">
+    <label>Time (YYYY-mm-dd HH:ii:ss)</label><input id="time" placeholder="2025-12-31 23:59:59">
+    <button onclick="single()">送出 /inject</button>
+
+    <h3 style="margin-top:24px">批次插隊（預設 44 筆、每 7 秒）</h3>
+    <label>Env</label><input id="env2" value="A1">
+    <label>Count</label><input id="count" value="44">
+    <label>Gap (sec)</label><input id="gap" value="7">
+    <button onclick="batch()">送出 /inject-batch</button>
+
+    <script>
+    async function single(){
+      const body = { env:env.value, text:text.value };
+      if (time.value) body.time = time.value;
+      const r = await fetch('/inject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      alert(await r.text());
+    }
+    async function batch(){
+      const body = { env:env2.value, count:parseInt(count.value||'44',10), gap:parseInt(gap.value||'7',10) };
+      const r = await fetch('/inject-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      alert(await r.text());
+    }
+    </script>
+  </body></html>
+HTML;
+  html($html);
+}
+
+
 
 if ($path === '/health') { ok(['ok'=>true]); }
 
